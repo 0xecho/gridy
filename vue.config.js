@@ -1,3 +1,3 @@
 module.exports = {
-    publicPath: '/gridy/'
+    publicPath: '/gridy/dist/'
 }
