@@ -2,7 +2,8 @@
   <div id="app">
     <div id="nav">
       <router-link to="/">Algorithms</router-link> |
-      <router-link to="/test">Test Random Game</router-link>
+      <router-link to="/test">Test Random Game</router-link> |
+      <router-link to="/testnn">Test NN Game</router-link>
     </div>
     <router-view/>
   </div>

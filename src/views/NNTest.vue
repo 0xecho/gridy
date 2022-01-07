@@ -1,10 +1,12 @@
 <template>
   <div class="about">
+    <label for="generations">Generations</label>
+    <input type="number" v-model="generations" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
     <label for="ticks">Ticks</label>
     <input type="number" v-model="ticks" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
     <label for="ticks">Tick speed</label>
     <input type="number" v-model="tickSpeed" :disabled="!editable" :min="50" :max="1000" style="width: 50px">
-    <button @click="addRandomPlayers(10)" :disabled="startIndex==null || endIndex==null || !editable ">Play</button>
+    <button @click="play()" :disabled="startIndex==null || endIndex==null || !editable ">Play</button>
     <button @click="reset(10)" :disabled="editable">Reset BTN</button>
     <br>
     <h6>Current Tick: {{tick}}</h6>
@@ -15,6 +17,7 @@
 
 <script>
 import Grid from '@/components/Grid'
+import nn from '../nn'
 
 function xyToIndex(x, y, gridBaseDimension) { 
   return parseInt(y) * gridBaseDimension + parseInt(x);
@@ -52,6 +55,7 @@ export default {
             ticks: 10,
             tick: 0,
             tickSpeed: 100,
+            generations: 10,
         }
     },
     beforeMount() {
@@ -90,10 +94,9 @@ export default {
             }            
         },
         addRandomPlayers(n){
-          this.editable = false;
           for (let i = 0; i < n; i++) {
-              this.players.push({
-                  x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+            this.players.push({
+              x: indexToXY(this.startIndex, this.gridBaseDimension).x,
                   y: indexToXY(this.startIndex, this.gridBaseDimension).y,
                   type: 'player',
                   score: 0,
@@ -107,10 +110,12 @@ export default {
                   color: '#' + Math.floor(Math.random() * 16777215).toString(16)
               });
           }
-          this.play()
+          // this.play()
         },
         play() {
-          // for a 100 ticks, get next state and update players
+          this.editable = false;
+          this.addRandomPlayers(10)
+          
           let tick = 0;
           let interval = setInterval(() => {
             if (tick >= this.ticks) {
@@ -123,6 +128,7 @@ export default {
             for(let i=0; i<state.length; i++) {
               let player = state[i];
               this.updatePlayer(player);
+              this.players[player.id]=player;
               if (player.x === indexToXY(this.endIndex, this.gridBaseDimension).x && player.y === indexToXY(this.endIndex, this.gridBaseDimension).y) {
                 clearInterval(interval);
                 this.found(player.path);
@@ -134,6 +140,11 @@ export default {
             this.tick = tick;
           }, this.tickSpeed);
           this.gameInterval = interval;
+          // this.addRandomPlayers(10);
+          
+          // this.players.forEach(player => {
+          //   nn(player, endNode)
+          // })
         },
         getNeighbors(x, y, diagonals) {
             let sqrt = Math.ceil(Math.sqrt(this.data.length));
@@ -168,17 +179,24 @@ export default {
         },
         getNextState() {
           // returns a list of players states after one step
-          // for each player, get a random neighbor and move there
+          // for each player, 
+          let endNode = {
+            x: indexToXY(this.endIndex, this.gridBaseDimension).x,
+            y: indexToXY(this.endIndex, this.gridBaseDimension).y,
+          }
+          let dirX = [1, 0, -1, 0];
+          let dirY = [0, 1, 0, -1];
           let nextState = this.players.map(player => {
-            let neighbors = this.getNeighbors(player.x, player.y)
-            let randomNeighborIndex = neighbors[Math.floor(Math.random() * neighbors.length)]
-            let randomNeighbor = this.data[randomNeighborIndex];
-            console.log("Random Neighbor: ", randomNeighbor.x, randomNeighbor.y);
+            let {playerWeight,outputWeight,direction} = nn(player, endNode) 
+            let newX = player.x + dirX[direction];
+            let newY = player.y + dirY[direction];
+            player.playerWeight = playerWeight;
+            player.outputWeight = outputWeight;
             return {
               ...player,
-              newX: randomNeighbor.x,
-              newY: randomNeighbor.y,
-              path: [...player.path, {x: randomNeighbor.x, y: randomNeighbor.y}]
+              newX: newX,
+              newY: newY,
+              path: [...player.path, {x: newX, y: newY}],
             }
           })
           return nextState
@@ -193,7 +211,6 @@ export default {
           this.data[player.newX + player.newY * this.gridBaseDimension].type = 'player';
           player.x = player.newX;
           player.y = player.newY;
-          player.score = player.path.length;
           this.players[player.id] = player;
         },
         reset() {
