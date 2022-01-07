@@ -1,6 +1,10 @@
 
 # GRIDY
+#### Link:  https://0xecho.github.io/gridy/dist/#/ 
 ## What does this project do?
+
+![Preview](https://i.imgur.com/Ou8mMec.png)
+
 What started out as a simple experiment to make a grid (not the css grid but the `graph-paper-esque` visual element) using vue js, somehow escalated to me implementing some of the searching algorithms on said grid to pass the time. 
 
 ## Project setup
