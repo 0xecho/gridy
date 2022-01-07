@@ -1,6 +1,6 @@
 <template>
   <div class="grid" id="container" :style="{width: gridBaseWidth + 'px', height: gridBaseWidth + 'px'}">
-    <div class="cell" :class="cell.type + (editable ? ' pointer' : '' )" :style="{'width': cellWidth + 'px', 'height': cellWidth + 'px'}" v-for="cell, index in myData" :key="index" @click="clickCell(index)">
+    <div class="cell" :class="cell.type + (editable ? ' pointer' : '' )" :style="{'width': cellWidth + 'px', 'height': cellWidth + 'px', 'color': cell.color}" v-for="cell, index in myData" :key="index" @click="clickCell(index)">
         <slot :cell="cell"></slot>
     </div>
   </div>
