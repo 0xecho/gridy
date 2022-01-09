@@ -283,7 +283,7 @@ export default {
 
           }
         },
-        async runGeneration(i){
+        async runGeneration(){
           console.log((this.player_nn_map, this.player_nn_map!==null));
           if (this.editable) {
               return
