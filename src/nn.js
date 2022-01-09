@@ -63,8 +63,10 @@ class NeuralNetwork {
         return arr.indexOf(Math.max(...arr));
     }
 
-    get_random_weight_children() {
-        let weight_decay = 0.23;
+    get_random_weight_children(weight_decay) {
+        if(weight_decay == undefined) {
+            weight_decay = 0.2;
+        }
         let new_nn = new NeuralNetwork(this.input_nodes, this.hidden_nodes, this.output_nodes);
         for (let i = 0; i < this.hidden_nodes; i++) {
             for (let j = 0; j < this.input_nodes; j++) {

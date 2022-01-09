@@ -1,9 +1,12 @@
 <template>
+<!-- scrollable -->
+<div class="grid-container">
   <div class="grid" id="container" :style="{width: gridBaseWidth + 'px', height: gridBaseWidth + 'px'}">
     <div class="cell" :class="cell.type + (editable ? ' pointer' : '' )" :style="{'width': cellWidth + 'px', 'height': cellWidth + 'px', 'background-color': cellColor(index)}" v-for="cell, index in myData" :key="index" @click="clickCell(index)">
         <slot :cell="cell"></slot>
     </div>
   </div>
+</div>
 </template>
 
 <script>
@@ -14,18 +17,19 @@ export default {
     editable: Boolean,
   },
   mounted() {
-    let sqrt = Math.ceil(Math.sqrt(this.data.length));
+    // let sqrt = Math.ceil(Math.sqrt(this.data.length));
     // console.log(sqrt);
-    let remainder = Math.abs(this.data.length - (sqrt * sqrt));
+    // let remainder = Math.abs(this.data.length - (sqrt * sqrt));
     // console.log(remainder);
-    for (let i = 0; i < remainder; i++) {
-      this.myData.push({type: 'empty', id: this.data.length + 1});
-    }  
+    // for (let i = 0; i < remainder; i++) {
+    //   this.myData.push({type: 'empty', id: this.data.length + 1});
+    // }  
+    console.log(this.gridBaseDimension);
   },
   data() {
     return {
       gridBaseDimension: Math.ceil(Math.sqrt(this.data.length)),
-      gridBaseWidth: 500,
+      gridBaseWidth: 550,
       myData: this.data,
     }
   },
@@ -135,4 +139,15 @@ export default {
 .pointer {
   cursor: pointer;
 }
+
+.grid-container {
+  
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  grid-gap: 1px;
+  background-color: #f2f2f2;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+
 </style>

@@ -1,19 +1,25 @@
 <template>
   <div class="about">
-    <label for="ticks">Ticks</label>
-    <input type="number" v-model="ticks" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
     <label for="generations">Generations</label>
     <input type="number" v-model="generations" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
+    <label for="ticks">Ticks</label>
+    <input type="number" v-model="ticks" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
     <label for="population">Population</label>
     <input type="number" v-model="population" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
+    <label for="weight_decay">Weight Decay</label>
+    <input type="number" v-model="weight_decay" :disabled="!editable" :min="0" :max="1" step="0.01" style="width: 50px">
+    <label for="cutOffPercentage">Cut Off Percentage</label>
+    <input type="number" v-model="cutOffPercent" :disabled="!editable" :min="0" :max="1" step="0.01" style="width: 50px">
     <label for="ticks">Tick speed</label>
     <input type="number" v-model="tickSpeed" :disabled="!editable" :min="50" :max="1000" style="width: 50px">
+    <label for="gridSize">Grid size</label>
+    <input type="number" v-model="gridSize" :disabled="!editable" :min="5" :max="1000" style="width: 50px">
     <button @click="start()" :disabled="startIndex==null || endIndex==null || !editable ">Play</button>
     <button @click="reset(10)" :disabled="editable">Reset BTN</button>
     <br>
     <h6>Current Tick: {{tick}}</h6>
     <h6>Current Generation: {{generation}}</h6>
-    <Grid :data='data' :editable='editable' @onClick='clickCell'>
+    <Grid :data='data' :editable='editable' @onClick='clickCell' :key="gridSize">
     </Grid>
   </div>
 </template>
@@ -70,7 +76,9 @@ export default {
             tickSpeed: 100,
             player_nn_map: null,
             cutOffPercent: 0.2,
-            population: 15
+            population: 15,
+            weight_decay: 0.15,
+            gridSize: 11
         }
     },
     beforeMount() {
@@ -90,6 +98,23 @@ export default {
         gridBaseDimension: function() {
             return Math.ceil(Math.sqrt(this.data.length));
         },
+    },
+    watch: {
+      // when gridSize changes, update the data
+      gridSize: function() {
+        this.data = [];
+        let toAdd = this.gridSize * this.gridSize;
+        let gridBaseDimension = Math.ceil(Math.sqrt(toAdd));
+        for (let i = 0; i < toAdd; i++) {
+          this.data.push({
+            type: 'empty', 
+            id: i,
+            // set x and y
+            x: indexToXY(i, gridBaseDimension).x,
+            y: indexToXY(i, gridBaseDimension).y,
+          });
+        }
+      },
     },
     methods: {
         clickCell(cell) {
@@ -246,15 +271,15 @@ export default {
           this.editable = false;
           for(let i=0; i<this.generations; i++) {
             this.generation = i;
-            await this.runGeneration(i);
-            if (this.editable) {
-              return
-            }
             this.data.forEach(cell => {
               cell.type = 'empty';              
             })
             this.data[this.startIndex].type = 'start';
             this.data[this.endIndex].type = 'end';
+            await this.runGeneration(i);
+            if (this.editable) {
+              return
+            }
 
           }
         },
@@ -318,7 +343,7 @@ export default {
               this.players.push(player);
               let best_player = best_players[id % best_players.length]
               let best_player_nn = this.player_nn_map[best_player];
-              new_player_nn_map[id] = best_player_nn.get_random_weight_children();
+              new_player_nn_map[id] = best_player_nn.get_random_weight_children(this.weight_decay);
               id++;
             }
             this.player_nn_map = new_player_nn_map;
@@ -382,10 +407,11 @@ export default {
           let dirY = [0, -1, 0, 1];
           let newX = player.x + dirX[dir];
           let newY = player.y + dirY[dir];
-          if(newX < 0 || newX >= this.gridBaseDimension || newY < 0 || newY >= this.gridBaseDimension){
+          let newIndex = newX + newY * this.gridBaseDimension;
+          if(newX < 0 || newX >= this.gridBaseDimension || newY < 0 || newY >= this.gridBaseDimension || this.data[newIndex] === undefined){
             return;
           }
-          let newIndex = newX + newY * this.gridBaseDimension;
+
           this.data[newIndex].type = 'player';
           this.data[newIndex].color = player.color;
           this.data[player.x + player.y * this.gridBaseDimension].type = 'visited';
