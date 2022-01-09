@@ -26,6 +26,14 @@ function indexToXY(index, gridBaseDimension) {
   return {x: x, y: y};  
 }
 
+function getRandomColor() {
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+        color += Math.floor(Math.random() * 10);
+    }
+    return color;
+}
+
 export default {
     name: "TestRandomGame",
     components: {
@@ -104,7 +112,7 @@ export default {
                     }
                   ],
                   id: i,
-                  color: '#' + Math.floor(Math.random() * 16777215).toString(16)
+                  color: getRandomColor()
               });
           }
           this.play()
@@ -118,15 +126,15 @@ export default {
               return;
             }
             let state = this.getNextState(tick);
-            console.log("State: ", state.map(player => player.path));
+            // console.log("State: ", state.map(player => player.path));
             // loop through states
             for(let i=0; i<state.length; i++) {
               let player = state[i];
               this.updatePlayer(player);
               if (player.x === indexToXY(this.endIndex, this.gridBaseDimension).x && player.y === indexToXY(this.endIndex, this.gridBaseDimension).y) {
                 clearInterval(interval);
-                this.found(player.path);
-                console.log("Found: ", player.path);
+                this.found(player);
+                // console.log("Found: ", player.path);
                 break
               }
             }
@@ -173,7 +181,7 @@ export default {
             let neighbors = this.getNeighbors(player.x, player.y)
             let randomNeighborIndex = neighbors[Math.floor(Math.random() * neighbors.length)]
             let randomNeighbor = this.data[randomNeighborIndex];
-            console.log("Random Neighbor: ", randomNeighbor.x, randomNeighbor.y);
+            // console.log("Random Neighbor: ", randomNeighbor.x, randomNeighbor.y);
             return {
               ...player,
               newX: randomNeighbor.x,
@@ -186,10 +194,11 @@ export default {
         updatePlayer(player) {
           // remove player from grid and add to new position
           let index = xyToIndex(player.x, player.y, this.gridBaseDimension);
-          console.log("index: ", index);
-          console.log("player: ", player);
-          console.log("data: ", this.data);
+          // console.log("index: ", index);
+          // console.log("player: ", player);
+          // console.log("data: ", this.data);
           this.data[index].type = 'visited';
+          this.data[index].color = player.color;
           this.data[player.newX + player.newY * this.gridBaseDimension].type = 'player';
           player.x = player.newX;
           player.y = player.newY;
@@ -204,15 +213,20 @@ export default {
           clearInterval(this.gameInterval);
           this.editable = true;
         },
-        found(path){
-          // this.players.forEach(player => {
-          //   this.data[player.x + player.y * this.gridBaseDimension].type = 'visited';
-          // })
-          this.data.filter(cell => cell.type === 'player').forEach(cell => cell.type = 'visited');
+        found(player){
+          let path = player.path;
           path.forEach(cell => {
-            this.data[cell.x + cell.y * this.gridBaseDimension].type = 'end';
+            this.data[cell.x + cell.y * this.gridBaseDimension].color = player.color;
           })
+          this.data.forEach(cell => {
 
+            if (cell.type === 'player'){
+              return
+            }
+            if (!path.find(pathCell => pathCell.x === cell.x && pathCell.y === cell.y)) {
+              cell.color = '#cccccc';
+            }
+          })
         }
     }
 

@@ -1,15 +1,18 @@
 <template>
   <div class="about">
-    <label for="generations">Generations</label>
-    <input type="number" v-model="generations" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
     <label for="ticks">Ticks</label>
     <input type="number" v-model="ticks" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
+    <label for="generations">Generations</label>
+    <input type="number" v-model="generations" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
+    <label for="population">Population</label>
+    <input type="number" v-model="population" :disabled="!editable" :min="0" :max="1000" style="width: 50px">
     <label for="ticks">Tick speed</label>
     <input type="number" v-model="tickSpeed" :disabled="!editable" :min="50" :max="1000" style="width: 50px">
-    <button @click="play()" :disabled="startIndex==null || endIndex==null || !editable ">Play</button>
+    <button @click="start()" :disabled="startIndex==null || endIndex==null || !editable ">Play</button>
     <button @click="reset(10)" :disabled="editable">Reset BTN</button>
     <br>
     <h6>Current Tick: {{tick}}</h6>
+    <h6>Current Generation: {{generation}}</h6>
     <Grid :data='data' :editable='editable' @onClick='clickCell'>
     </Grid>
   </div>
@@ -17,7 +20,7 @@
 
 <script>
 import Grid from '@/components/Grid'
-import nn from '../nn'
+import NeuralNetwork from '../nn'
 
 function xyToIndex(x, y, gridBaseDimension) { 
   return parseInt(y) * gridBaseDimension + parseInt(x);
@@ -27,6 +30,14 @@ function indexToXY(index, gridBaseDimension) {
   let x = index % gridBaseDimension;
   let y = Math.floor(index / gridBaseDimension);
   return {x: x, y: y};  
+}
+
+function getRandomColor() {
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+        color += Math.floor(Math.random() * 10);
+    }
+    return color;
 }
 
 export default {
@@ -52,10 +63,14 @@ export default {
             players: [],
             gameInterval: null,
             editable: true,
-            ticks: 10,
+            generations: 50,
+            generation: 0,
+            ticks: 50,
             tick: 0,
             tickSpeed: 100,
-            generations: 10,
+            player_nn_map: null,
+            cutOffPercent: 0.2,
+            population: 15
         }
     },
     beforeMount() {
@@ -94,9 +109,10 @@ export default {
             }            
         },
         addRandomPlayers(n){
+          this.editable = false;
           for (let i = 0; i < n; i++) {
-            this.players.push({
-              x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+              this.players.push({
+                  x: indexToXY(this.startIndex, this.gridBaseDimension).x,
                   y: indexToXY(this.startIndex, this.gridBaseDimension).y,
                   type: 'player',
                   score: 0,
@@ -107,15 +123,13 @@ export default {
                     }
                   ],
                   id: i,
-                  color: '#' + Math.floor(Math.random() * 16777215).toString(16)
+                  color: getRandomColor()
               });
           }
-          // this.play()
+          this.play()
         },
         play() {
-          this.editable = false;
-          this.addRandomPlayers(10)
-          
+          // for a 100 ticks, get next state and update players
           let tick = 0;
           let interval = setInterval(() => {
             if (tick >= this.ticks) {
@@ -123,16 +137,15 @@ export default {
               return;
             }
             let state = this.getNextState(tick);
-            console.log("State: ", state.map(player => player.path));
+            // console.log("State: ", state.map(player => player.path));
             // loop through states
             for(let i=0; i<state.length; i++) {
               let player = state[i];
               this.updatePlayer(player);
-              this.players[player.id]=player;
               if (player.x === indexToXY(this.endIndex, this.gridBaseDimension).x && player.y === indexToXY(this.endIndex, this.gridBaseDimension).y) {
                 clearInterval(interval);
-                this.found(player.path);
-                console.log("Found: ", player.path);
+                this.found(player);
+                // console.log("Found: ", player.path);
                 break
               }
             }
@@ -140,11 +153,6 @@ export default {
             this.tick = tick;
           }, this.tickSpeed);
           this.gameInterval = interval;
-          // this.addRandomPlayers(10);
-          
-          // this.players.forEach(player => {
-          //   nn(player, endNode)
-          // })
         },
         getNeighbors(x, y, diagonals) {
             let sqrt = Math.ceil(Math.sqrt(this.data.length));
@@ -179,24 +187,17 @@ export default {
         },
         getNextState() {
           // returns a list of players states after one step
-          // for each player, 
-          let endNode = {
-            x: indexToXY(this.endIndex, this.gridBaseDimension).x,
-            y: indexToXY(this.endIndex, this.gridBaseDimension).y,
-          }
-          let dirX = [1, 0, -1, 0];
-          let dirY = [0, 1, 0, -1];
+          // for each player, get a random neighbor and move there
           let nextState = this.players.map(player => {
-            let {playerWeight,outputWeight,direction} = nn(player, endNode) 
-            let newX = player.x + dirX[direction];
-            let newY = player.y + dirY[direction];
-            player.playerWeight = playerWeight;
-            player.outputWeight = outputWeight;
+            let neighbors = this.getNeighbors(player.x, player.y)
+            let randomNeighborIndex = neighbors[Math.floor(Math.random() * neighbors.length)]
+            let randomNeighbor = this.data[randomNeighborIndex];
+            // console.log("Random Neighbor: ", randomNeighbor.x, randomNeighbor.y);
             return {
               ...player,
-              newX: newX,
-              newY: newY,
-              path: [...player.path, {x: newX, y: newY}],
+              newX: randomNeighbor.x,
+              newY: randomNeighbor.y,
+              path: [...player.path, {x: randomNeighbor.x, y: randomNeighbor.y}]
             }
           })
           return nextState
@@ -204,13 +205,15 @@ export default {
         updatePlayer(player) {
           // remove player from grid and add to new position
           let index = xyToIndex(player.x, player.y, this.gridBaseDimension);
-          console.log("index: ", index);
-          console.log("player: ", player);
-          console.log("data: ", this.data);
+          // console.log("index: ", index);
+          // console.log("player: ", player);
+          // console.log("data: ", this.data);
           this.data[index].type = 'visited';
+          this.data[index].color = player.color;
           this.data[player.newX + player.newY * this.gridBaseDimension].type = 'player';
           player.x = player.newX;
           player.y = player.newY;
+          player.score = player.path.length;
           this.players[player.id] = player;
         },
         reset() {
@@ -219,19 +222,196 @@ export default {
           this.data[this.startIndex].type = 'start';
           this.data[this.endIndex].type = 'end';
           clearInterval(this.gameInterval);
+          this.player_nn_map = null;
+          this.generation = 0;
+          this.tick = 0;
           this.editable = true;
         },
-        found(path){
-          // this.players.forEach(player => {
-          //   this.data[player.x + player.y * this.gridBaseDimension].type = 'visited';
-          // })
-          this.data.filter(cell => cell.type === 'player').forEach(cell => cell.type = 'visited');
+        found(player){
+          let path = player.path;
           path.forEach(cell => {
-            this.data[cell.x + cell.y * this.gridBaseDimension].type = 'end';
+            this.data[cell.x + cell.y * this.gridBaseDimension].color = player.color;
           })
+          this.data.forEach(cell => {
 
-        }
+            if (cell.type === 'player'){
+              return
+            }
+            if (!path.find(pathCell => pathCell.x === cell.x && pathCell.y === cell.y)) {
+              cell.color = '#cccccc';
+            }
+          })
+        },
+        async start() {
+          this.editable = false;
+          for(let i=0; i<this.generations; i++) {
+            this.generation = i;
+            await this.runGeneration(i);
+            if (this.editable) {
+              return
+            }
+            this.data.forEach(cell => {
+              cell.type = 'empty';              
+            })
+            this.data[this.startIndex].type = 'start';
+            this.data[this.endIndex].type = 'end';
+
+          }
+        },
+        async runGeneration(i){
+          console.log((this.player_nn_map, this.player_nn_map!==null));
+          if (this.editable) {
+              return
+            }
+          if(this.player_nn_map !== null){
+            let player_scores = await this.getScores();
+            let sorted_players = Object.keys(player_scores).sort((a, b) => player_scores[b] - player_scores[a]);            
+            console.log("Player Scores: ", player_scores);
+            let best_players = sorted_players.slice(Object.keys(player_scores).length - this.cutOffPercent * Object.keys(player_scores).length, Object.keys(player_scores).length);
+            let worst_players = sorted_players.slice(0, this.cutOffPercent * Object.keys(player_scores).length);
+            console.log("Best Players: ", best_players);
+            console.log("Worst Players: ", worst_players);
+            let new_player_nn_map = {};
+            this.players = []
+            let id = 0
+            best_players.forEach(player_id => {
+              let player_nn = this.player_nn_map[player_id];
+              let player = {
+                id: id,
+                x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+                y: indexToXY(this.startIndex, this.gridBaseDimension).y,
+                path: [],
+                score: 0,
+                color: getRandomColor()
+              }
+              this.players.push(player);
+              new_player_nn_map[id] = player_nn;
+              id++;
+            })
+            worst_players.forEach(player_id => {
+              let player_nn = this.player_nn_map[player_id];
+              let player = {
+                id: id,
+                x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+                y: indexToXY(this.startIndex, this.gridBaseDimension).y,
+                path: [],
+                score: 0,
+                color: getRandomColor()
+              }
+              this.players.push(player);
+              new_player_nn_map[id] = player_nn;
+              id++;
+            })           
+            
+            // let remaining_num_of_players = this.population - best_players.length;
+            let remaining_num_of_players = this.population - best_players.length - worst_players.length;
+            for(let i=0; i<remaining_num_of_players; i++) {
+              let player = {
+                x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+                y: indexToXY(this.startIndex, this.gridBaseDimension).y,
+                path: [{x: indexToXY(this.startIndex, this.gridBaseDimension).x, y: indexToXY(this.startIndex, this.gridBaseDimension).y,}],
+                id: id,
+                type: 'player',
+                score: 0,
+                color: getRandomColor()
+              }              
+              this.players.push(player);
+              let best_player = best_players[id % best_players.length]
+              let best_player_nn = this.player_nn_map[best_player];
+              new_player_nn_map[id] = best_player_nn.get_random_weight_children();
+              id++;
+            }
+            this.player_nn_map = new_player_nn_map;
+          }
+          if(this.player_nn_map==null){
+            this.players = []
+            // add 10 random players
+            for(let i=0; i<this.population; i++) {
+              this.players.push({
+                  x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+                  y: indexToXY(this.startIndex, this.gridBaseDimension).y,
+                  type: 'player',
+                  score: 0,
+                  path: [
+                    {
+                      x: indexToXY(this.startIndex, this.gridBaseDimension).x,
+                      y: indexToXY(this.startIndex, this.gridBaseDimension).y,
+                    }
+                  ],
+                  id: i,
+                  color: getRandomColor()
+              });
+            }
+            this.player_nn_map = {}
+            this.players.forEach(player => {
+              this.player_nn_map[player.id] = new NeuralNetwork(4,4,4)
+            })
+          }
+          for(let i=0; i<this.ticks; i++){
+            this.tick = i;
+            if (this.editable) {
+              return
+            }
+            await this.runTick();
+            await this.sleep(this.tickSpeed);
+          }
+        },
+        sleep(ms) {
+          return new Promise((resolve) => {
+            setTimeout(resolve, ms);
+          });
+        },
+        async runTick(){
+          this.players.forEach(player => {
+            let player_x = player.x;
+            let player_y = player.y;
+            let end_x = indexToXY(this.endIndex, this.gridBaseDimension).x;
+            let end_y = indexToXY(this.endIndex, this.gridBaseDimension).y;
+            let inputs = [
+              player_x,
+              player_y,
+              end_x,
+              end_y
+            ];
+            let dir = this.player_nn_map[player.id].get_output(inputs);
+            if(dir!==4)this.movePlayer(player, dir);
+          })
+        },
+        movePlayer(player, dir){
+          let dirX = [-1 , 0, 1, 0];
+          let dirY = [0, -1, 0, 1];
+          let newX = player.x + dirX[dir];
+          let newY = player.y + dirY[dir];
+          if(newX < 0 || newX >= this.gridBaseDimension || newY < 0 || newY >= this.gridBaseDimension){
+            return;
+          }
+          let newIndex = newX + newY * this.gridBaseDimension;
+          this.data[newIndex].type = 'player';
+          this.data[newIndex].color = player.color;
+          this.data[player.x + player.y * this.gridBaseDimension].type = 'visited';
+          player.x = newX;
+          player.y = newY;
+          player.path.push({x: newX, y: newY});
+        },
+        async getScores() {
+          let scores = {};
+          for(let i=0; i<this.players.length; i++) {
+            let player = this.players[i];
+            let score = await this.getPlayerScore(player);
+            scores[player.id] = score;
+          }
+          return scores;
+        },
+        async getPlayerScore(player) {
+          let player_x = player.x;
+          let player_y = player.y;
+          let end_x = indexToXY(this.endIndex, this.gridBaseDimension).x;
+          let end_y = indexToXY(this.endIndex, this.gridBaseDimension).y;
+          let distance = Math.abs(player_x - end_x) + Math.abs(player_y - end_y);
+          return distance;
+        },
     }
 
 }
 </script>
+

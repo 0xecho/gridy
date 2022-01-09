@@ -1,50 +1,89 @@
-// create a neural network, with the given number of input, hidden, and output nodes, use numjs for the math
-// inputs: current node's x and y coordinates, end node's x and y coordinates
-// outputs: direction to move
-
-export default function nn(player, end){
-    var inputs = [player.x, player.y, end.x, end.y];
-    let weights = []
-    for(let i = 0; i < 3; i++){
-        weights.push(Math.random())
+class NeuralNetwork {
+    constructor(input_nodes, hidden_nodes, output_nodes) {
+        this.input_nodes = input_nodes;
+        this.hidden_nodes = hidden_nodes;
+        this.output_nodes = output_nodes;
+        this.weights_hl = [];
+        this.biase_h = [];
+        this.weights_ol = [];
+        this.biase_o = [];
+        this.initialize_weights();
     }
 
-    let outputWeights = [
-    ]
-    for (let i = 0; i < 4; i++) {
-        outputWeights.push(Math.random())
-    }
-    
-    let layer = [
-        inputs[0] * weights[0] + inputs[1] * weights[0] + inputs[2] * weights[0] + inputs[3] * weights[0],
-        inputs[0] * weights[1] + inputs[1] * weights[1] + inputs[2] * weights[1] + inputs[3] * weights[1],
-        inputs[0] * weights[2] + inputs[1] * weights[2] + inputs[2] * weights[2] + inputs[3] * weights[2]
-    ]
-
-    let output = [
-        layer[0] * outputWeights[0] + layer[1] * outputWeights[0] + layer[2] * outputWeights[0],
-        layer[0] * outputWeights[1] + layer[1] * outputWeights[1] + layer[2] * outputWeights[1],
-        layer[0] * outputWeights[2] + layer[1] * outputWeights[2] + layer[2] * outputWeights[2],        
-        layer[0] * outputWeights[3] + layer[1] * outputWeights[3] + layer[2] * outputWeights[3]
-    ]
-
-    // console.log("Inputs: ", inputs)
-    // console.log("Weights: ", weights)
-    // console.log("Output Weights: ", outputWeights)
-    // console.log("Layer: ", layer)
-    // console.log("Output: ", output)
-
-    let max = 0;
-    let maxIndex = 0;
-    for(let i = 0; i < output.length; i++){
-        if(output[i] > max){
-            max = output[i];
-            maxIndex = i;
+    initialize_weights() {
+        for (let i = 0; i < this.hidden_nodes; i++) {
+            this.weights_hl.push([]);
+            for (let j = 0; j < this.input_nodes; j++) {
+                this.weights_hl[i].push(Math.random() * 2 - 1);
+            }
+        }
+        for (let i = 0; i < this.output_nodes; i++) {
+            this.weights_ol.push([]);
+            for (let j = 0; j < this.hidden_nodes; j++) {
+                this.weights_ol[i].push(Math.random() * 2 - 1);
+            }
+        }
+        for (let i = 0; i < this.hidden_nodes; i++) {
+            this.biase_h.push(Math.random() * 2 - 1);
+        }
+        for (let i = 0; i < this.output_nodes; i++) {
+            this.biase_o.push(Math.random() * 2 - 1);
         }
     }
-    return {
-        direction: maxIndex,
-        playerWeight: weights,
-        outputWeight: outputWeights
+
+    get_output(inputs) {
+        let hidden_outputs = [];
+        for (let i = 0; i < this.hidden_nodes; i++) {
+            let hidden_node_output = 0;
+            for (let j = 0; j < this.input_nodes; j++) {
+                hidden_node_output += inputs[j] * this.weights_hl[i][j];
+            }
+            hidden_node_output += this.biase_h[i];
+            hidden_node_output = this.activation_function(hidden_node_output);
+            hidden_outputs.push(hidden_node_output);
+        }
+        let output_outputs = [];
+        for (let i = 0; i < this.output_nodes; i++) {
+            let output_node_output = 0;
+            for (let j = 0; j < this.hidden_nodes; j++) {
+                output_node_output += hidden_outputs[j] * this.weights_ol[i][j];
+            }
+            output_node_output += this.biase_o[i];
+            output_node_output = this.activation_function(output_node_output);
+            output_outputs.push(output_node_output);
+        }
+        return this.argmax(output_outputs);
     }
+    
+    activation_function(x) {
+        return 1 / (1 + Math.exp(-x));
+    }
+
+    argmax(arr) {
+        return arr.indexOf(Math.max(...arr));
+    }
+
+    get_random_weight_children() {
+        let weight_decay = 0.23;
+        let new_nn = new NeuralNetwork(this.input_nodes, this.hidden_nodes, this.output_nodes);
+        for (let i = 0; i < this.hidden_nodes; i++) {
+            for (let j = 0; j < this.input_nodes; j++) {
+                new_nn.weights_hl[i][j] = this.weights_hl[i][j] + (Math.random() * 2 - 1) * weight_decay;
+            }
+        }
+        for (let i = 0; i < this.output_nodes; i++) {
+            for (let j = 0; j < this.hidden_nodes; j++) {
+                new_nn.weights_ol[i][j] = this.weights_ol[i][j] + (Math.random() * 2 - 1) * weight_decay;
+            }
+        }
+        for (let i = 0; i < this.hidden_nodes; i++) {
+            new_nn.biase_h[i] = this.biase_h[i] + (Math.random() * 2 - 1) * weight_decay;
+        }
+        for (let i = 0; i < this.output_nodes; i++) {
+            new_nn.biase_o[i] = this.biase_o[i] + (Math.random() * 2 - 1) * weight_decay;
+        }
+        return new_nn;
+    }            
 }
+
+export default NeuralNetwork;

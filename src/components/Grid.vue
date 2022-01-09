@@ -1,6 +1,6 @@
 <template>
   <div class="grid" id="container" :style="{width: gridBaseWidth + 'px', height: gridBaseWidth + 'px'}">
-    <div class="cell" :class="cell.type + (editable ? ' pointer' : '' )" :style="{'width': cellWidth + 'px', 'height': cellWidth + 'px', 'color': cell.color}" v-for="cell, index in myData" :key="index" @click="clickCell(index)">
+    <div class="cell" :class="cell.type + (editable ? ' pointer' : '' )" :style="{'width': cellWidth + 'px', 'height': cellWidth + 'px', 'background-color': cellColor(index)}" v-for="cell, index in myData" :key="index" @click="clickCell(index)">
         <slot :cell="cell"></slot>
     </div>
   </div>
@@ -15,9 +15,9 @@ export default {
   },
   mounted() {
     let sqrt = Math.ceil(Math.sqrt(this.data.length));
-    console.log(sqrt);
+    // console.log(sqrt);
     let remainder = Math.abs(this.data.length - (sqrt * sqrt));
-    console.log(remainder);
+    // console.log(remainder);
     for (let i = 0; i < remainder; i++) {
       this.myData.push({type: 'empty', id: this.data.length + 1});
     }  
@@ -46,6 +46,28 @@ export default {
           x: x,
           y: y,
         });
+      }
+    },cellColor: function(cellIndex) {
+      let cell = this.myData[cellIndex];
+      if(!cell) {
+        return '#fff';
+      }
+      if (cell.type === 'empty') {
+        return '#fff';
+      } else if (cell.type === 'start') {
+        return '#00ff00';
+      } else if (cell.type === 'end') {
+        return '#ff0000';
+      } else if (cell.color) {
+        return cell.color;
+      } else if (cell.type === 'wall') {
+        return '#000000';
+      } else if (cell.type === 'path') {
+        return '#0000ff';
+      } else if (cell.type === 'visited') {
+        return 'lightgray';
+      } else {
+        return '#ffffff';
       }
     },
   }
